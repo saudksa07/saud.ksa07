@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extract Links from IPA</title>
+</head>
+<body>
+    <h1>Extract Links from IPA</h1>
+    <input type="file" id="ipaFile" accept=".ipa">
+    <button onclick="extractLinks()">Extract Links</button>
+    <br>
+    <a id="downloadLink" style="display: none;">Download Links</a>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        function extractLinks() {
+            const fileInput = document.getElementById('ipaFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+                JSZip.loadAsync(arrayBuffer).then(zip => {
+                    const linkRegex = /https?:\/\/[^\s"]+/g;
+                    const links = new Set();
+
+                    const promises = [];
+                    zip.forEach((relativePath, zipEntry) => {
+                        if (!zipEntry.dir) {
+                            const promise = zip.file(zipEntry.name).async('string').then(content => {
+                                const foundLinks = content.match(linkRegex);
+                                if (foundLinks) {
+                                    foundLinks.forEach(link => links.add(link));
+                                }
+                            });
+                            promises.push(promise);
+                        }
+                    });
+
+                    Promise.all(promises).then(() => {
+                        const linksArray = Array.from(links).join('\n');
+                        const blob = new Blob([linksArray], { type: 'text/plain' });
+                        const downloadLink = document.getElementById('downloadLink');
+                        downloadLink.href = URL.createObjectURL(blob);
+                        downloadLink.download = 'links.txt';
+                        downloadLink.style.display = 'block';
+                    });
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
