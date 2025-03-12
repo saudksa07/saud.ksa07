@@ -1,60 +1,155 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extract Links from IPA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>مطر الكلمات المرتب</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Courier New', monospace;
+            touch-action: none;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .word {
+            position: absolute;
+            color: #fff;
+            text-shadow: 0 0 10px #00f;
+            font-size: 24px;
+            white-space: nowrap;
+            transition: opacity 0.5s;
+        }
+
+        .particle {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .word {
+                font-size: 5vw;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Extract Links from IPA</h1>
-    <input type="file" id="ipaFile" accept=".ipa">
-    <button onclick="extractLinks()">Extract Links</button>
-    <br>
-    <a id="downloadLink" style="display: none;">Download Links</a>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <div class="container"></div>
+
     <script>
-        function extractLinks() {
-            const fileInput = document.getElementById('ipaFile');
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('Please select a file first');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const arrayBuffer = e.target.result;
-                JSZip.loadAsync(arrayBuffer).then(zip => {
-                    const linkRegex = /https?:\/\/[^\s"]+/g;
-                    const links = new Set();
-
-                    const promises = [];
-                    zip.forEach((relativePath, zipEntry) => {
-                        if (!zipEntry.dir) {
-                            const promise = zip.file(zipEntry.name).async('string').then(content => {
-                                const foundLinks = content.match(linkRegex);
-                                if (foundLinks) {
-                                    foundLinks.forEach(link => links.add(link));
-                                }
-                            });
-                            promises.push(promise);
-                        }
-                    });
-
-                    Promise.all(promises).then(() => {
-                        const linksArray = Array.from(links).join('\n');
-                        const blob = new Blob([linksArray], { type: 'text/plain' });
-                        const downloadLink = document.getElementById('downloadLink');
-                        downloadLink.href = URL.createObjectURL(blob);
-                        downloadLink.download = 'links.txt';
-                        downloadLink.style.display = 'block';
-                    });
-                });
-            };
-            reader.readAsArrayBuffer(file);
+        const words = ['عبدالله', 'متى', 'تشتري', 'لي', 'دزرت'];
+        let currentWordIndex = 0;
+        const container = document.querySelector('.container');
+        let isAnimating = false;
+        
+        function createOrderedWord() {
+            if (isAnimating) return;
+            
+            isAnimating = true;
+            const word = document.createElement('div');
+            word.className = 'word';
+            word.textContent = words[currentWordIndex];
+            
+            currentWordIndex = (currentWordIndex + 1) % words.length;
+            
+            const x = Math.random() * (window.innerWidth - 100);
+            const y = -30;
+            
+            word.style.left = `${x}px`;
+            word.style.top = `${y}px`;
+            
+            container.appendChild(word);
+            animateOrderedWord(word);
         }
+
+        function animateOrderedWord(element) {
+            let y = parseFloat(element.style.top);
+            let speed = 2;
+            let rotation = 0;
+            
+            function animate() {
+                y += speed;
+                speed *= 1.02;
+                rotation += 2;
+                
+                element.style.top = `${y}px`;
+                element.style.transform = `rotate(${rotation}deg)`;
+                
+                if (y < window.innerHeight) {
+                    requestAnimationFrame(animate);
+                } else {
+                    explode(element);
+                    element.remove();
+                    isAnimating = false;
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        function explode(element) {
+            const rect = element.getBoundingClientRect();
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.width = `${Math.random() * 5}px`;
+                particle.style.height = particle.style.width;
+                particle.style.left = `${rect.left + rect.width/2}px`;
+                particle.style.top = `${rect.top}px`;
+                particle.style.opacity = '0.8';
+                
+                container.appendChild(particle);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 10;
+                
+                animateParticle(particle, angle, velocity);
+            }
+        }
+
+        function animateParticle(element, angle, velocity) {
+            let x = parseFloat(element.style.left);
+            let y = parseFloat(element.style.top);
+            let alpha = 0.8;
+            
+            function animate() {
+                x += Math.cos(angle) * velocity;
+                y += Math.sin(angle) * velocity + 2;
+                alpha -= 0.02;
+                
+                element.style.left = `${x}px`;
+                element.style.top = `${y}px`;
+                element.style.opacity = alpha;
+                
+                if (alpha > 0) {
+                    requestAnimationFrame(animate);
+                } else {
+                    element.remove();
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // بدء إنشاء الكلمات بالترتيب المحدد
+        setInterval(createOrderedWord, 1000);
+
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('.word').forEach(word => {
+                if (parseFloat(word.style.top) < 0) {
+                    word.style.left = `${Math.random() * (window.innerWidth - 100)}px`;
+                }
+            });
+        });
     </script>
 </body>
 </html>
